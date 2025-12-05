@@ -1,0 +1,27 @@
+# ----------------------------------------------------
+# Airflow provider packages
+# ----------------------------------------------------
+apache-airflow-providers-google==10.11.0
+apache-airflow-providers-http==4.2.0
+
+# ----------------------------------------------------
+# Selenium scrapers
+# ----------------------------------------------------
+selenium==4.24.0
+selenium-wire==5.1.0
+webdriver-manager==4.0.0
+
+# ----------------------------------------------------
+# Data processing libs (scrapers return CSVs)
+# ----------------------------------------------------
+pandas==2.2.3
+numpy==1.26.4
+requests==2.31.0
+
+# ----------------------------------------------------
+# Google Cloud SDK libs (upload CSV, creds, etc.)
+# ----------------------------------------------------
+google-cloud-storage==2.18.2
+google-cloud-bigquery==3.25.0
+google-cloud-bigquery-storage==2.25.0
+db-dtypes==1.2.0

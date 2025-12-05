@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pandas
+yfinance
+google-cloud-bigquery
+google-cloud-core
+google-api-core
+protobuf

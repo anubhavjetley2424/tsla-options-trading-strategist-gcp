@@ -1,0 +1,107 @@
+version: "3.8"
+
+x-airflow-common:
+  &airflow-common
+  image: airflow-selenium:latest   # <-- Built from your Dockerfile
+  environment:
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__CORE__FERNET_KEY: ""
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+
+    AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
+
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+
+    GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/gcp-key.json  # ⬅ If using GCP
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./scripts:/opt/airflow/scripts
+    - ./logs:/opt/airflow/logs
+    - ./gcp-key.json:/opt/airflow/gcp-key.json:ro   # ⬅ Optional if using GCP creds
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    - postgres
+    - redis
+
+services:
+
+  # -----------------------------------------------------
+  # Redis (Celery Queue)
+  # -----------------------------------------------------
+  redis:
+    image: redis:latest
+    container_name: airflow-redis
+
+  # -----------------------------------------------------
+  # PostgreSQL (Airflow Metadata DB)
+  # -----------------------------------------------------
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+
+  # -----------------------------------------------------
+  # Airflow Webserver
+  # -----------------------------------------------------
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: airflow-webserver
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # -----------------------------------------------------
+  # Airflow Scheduler
+  # -----------------------------------------------------
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow-scheduler
+    command: scheduler
+
+  # -----------------------------------------------------
+  # Airflow Worker (CeleryExecutor)
+  # -----------------------------------------------------
+  airflow-worker:
+    <<: *airflow-common
+    container_name: airflow-worker
+    command: celery worker
+
+  # -----------------------------------------------------
+  # Airflow Triggerer (for deferrable tasks)
+  # -----------------------------------------------------
+  airflow-triggerer:
+    <<: *airflow-common
+    container_name: airflow-triggerer
+    command: triggerer
+
+  # -----------------------------------------------------
+  # Creates DB + User + Tables
+  # -----------------------------------------------------
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    container_name: airflow-init
+    command: >
+      -c "airflow db init &&
+          airflow users create
+            --username admin
+            --password admin
+            --firstname Admin
+            --lastname User
+            --role Admin
+            --email admin@example.com"
+
+volumes:
+  postgres-db-volume:
